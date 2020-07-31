@@ -1,0 +1,52 @@
+import numpy as np
+
+#initialise -schedule function
+def initialize(context):
+    schedule_function(check_pairs,date_rules.every_day(),time_rules.market_close(minutes=60))
+    
+    context.spy = sid(8554)
+    context.qqq = sid(19920)
+    
+    context.long_on_spread = False
+    context.shorting_spread = False
+    
+# check pairs
+def check_pairs(context, data):
+    
+    spy = context.spy
+    qqq = context.qqq
+    
+    prices = data.history([spy,qqq], 'price', 30, '1d')
+    
+    short_prices = prices.iloc[-1:]
+    # spread = spy - qqq
+    ma21 = np.mean(prices[spy] - prices[qqq])
+    std21 = np.std(prices[spy] - prices[qqq])
+    
+    ma1 = np.mean(short_prices[spy] - short_prices[qqq])
+    
+    if std21 > 0:
+        zscore = (ma1 - ma21)/std21
+        
+        if zscore > 1.0 and not context.shorting_spread:
+            # spread = spy - qqq
+            order_target_percent(spy,-0.5)
+            order_target_percent(qqq,0.5)
+            context.sorting_spread = True
+            context.long_on_spread = False
+            
+        elif zscore < 1.0 and not context.long_on_spread:
+            order_target_percent(spy, 0.5)
+            order_target_percent(qqq, -0.5)
+            context.sorting_spread = False
+            context.long_on_spread = True
+            
+        elif abs(zscore) < 0.1: 
+            order_target_percent(spy, 0)
+            order_target_percent(qqq, 0)
+            context.sorting_spread = False
+            context.long_on_spread = False
+
+           
+        
+        record(Z_score = zscore)
